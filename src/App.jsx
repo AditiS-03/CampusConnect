@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminRegister from './pages/AdminRegister';
 import Dashboard from './pages/Dashboard';
 import TaskFeed from './pages/TaskFeed';
 import Submissions from './pages/Submissions';
@@ -23,6 +24,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin-register" element={<AdminRegister />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       {/* Ambassador routes */}
@@ -34,12 +36,6 @@ function AppRoutes() {
       } />
       <Route path="/submissions" element={
         <ProtectedRoute><Layout><Submissions /></Layout></ProtectedRoute>
-      } />
-      <Route path="/leaderboard" element={
-        <ProtectedRoute><Layout><Leaderboard /></Layout></ProtectedRoute>
-      } />
-      <Route path="/ai-insights" element={
-        <ProtectedRoute><Layout><AIInsights /></Layout></ProtectedRoute>
       } />
       <Route path="/community" element={
         <ProtectedRoute><Layout><Community /></Layout></ProtectedRoute>

@@ -22,7 +22,7 @@ function StatCard({ icon, label, value, gradient }) {
 }
 
 export default function Dashboard() {
-  const { user, profile } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [recentSubs, setRecentSubs]     = useState([]);
   const [availTasks, setAvailTasks]     = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -51,71 +51,76 @@ export default function Dashboard() {
 
   if (loading) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:400 }}><div className="spinner" style={{ width:40,height:40 }} /></div>;
 
+  if (!profile && !loading) return (
+    <div className="animate-fade-in" style={{ textAlign: 'center', padding: '100px 20px' }}>
+      <h2 style={{ fontSize: 24, marginBottom: 12 }}>Profile Not Found</h2>
+      <p style={{ color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto 24px' }}>
+        We found your login account, but your ambassador profile is missing. This happens if registration was interrupted.
+      </p>
+      <button className="btn btn-primary" onClick={() => logout()}>Logout & Try Again</button>
+    </div>
+  );
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-          <div>
-            <h1>Hey, {profile?.name || 'Ambassador'} 👋</h1>
-            <p style={{ color: 'var(--accent-purple-light)', fontWeight: 600 }}>Campus Ambassador @ {profile?.organization || 'CampusConnect'}</p>
-          </div>
-          <Link to="/tasks" className="btn btn-primary">🎯 View Missions</Link>
-        </div>
-      </div>
+      <header style={{ marginBottom: 40 }}>
+        <h1 style={{ fontSize: 44, fontWeight: 800 }}>Hey, <span className="gradient-text">{profile.name}</span> 👋</h1>
+        <p style={{ marginTop: 8, fontSize: 18, color: 'var(--text-muted)' }}>
+          {profile.role === 'admin' ? 'Admin' : 'Campus Ambassador'} @ <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{profile.organization}</span>
+        </p>
+      </header>
 
-      <div className="grid-2" style={{ marginBottom: 24, gap: 20 }}>
-        {/* Profile Card */}
-        <div className="card" style={{ display: 'flex', gap: 20, alignItems: 'center', background: 'linear-gradient(135deg, rgba(124,58,237,0.1), rgba(6,182,212,0.05))', border: '1px solid rgba(124,58,237,0.2)' }}>
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--accent-purple)' }} />
-          ) : (
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gradient-hero)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 800, color: 'white', flexShrink: 0 }}>
-              {profile?.name?.[0]}
-            </div>
-          )}
+      <div className="card" style={{ marginBottom: 40, padding: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+          <div style={{ 
+            width: 120, height: 120, borderRadius: '50%', 
+            background: 'var(--gradient-hero)', display: 'flex', 
+            alignItems: 'center', justifyContent: 'center', 
+            fontSize: 48, fontWeight: 800, color: 'white',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            {profile.name?.[0]}
+          </div>
           <div style={{ flex: 1 }}>
-            <h3 style={{ fontSize: 18, marginBottom: 4 }}>{profile?.name}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
-              <div><span style={{ color: 'var(--text-muted)' }}>College:</span> {profile?.college}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Organization:</span> {profile?.organization}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Course:</span> {profile?.course}</div>
-              <div><span style={{ color: 'var(--text-muted)' }}>Graduating:</span> {profile?.graduation_year} ({profile?.current_year})</div>
-              {profile?.college_id_url && <div><a href={profile.college_id_url} target="_blank" rel="noreferrer" style={{ color:'var(--accent-cyan)', textDecoration:'none' }}>🪪 View College ID</a></div>}
-              {profile?.resume_url && <div><a href={profile.resume_url} target="_blank" rel="noreferrer" style={{ color:'var(--accent-cyan)', textDecoration:'none' }}>📄 View Resume</a></div>}
+            <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 12 }}>{profile.name}</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {profile.role !== 'admin' && (
+                <>
+                  <div><span style={{ color: 'var(--text-muted)' }}>College:</span> {profile.college}</div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Course:</span> {profile.course}</div>
+                </>
+              )}
+              <div><span style={{ color: 'var(--text-muted)' }}>Organization:</span> {profile.organization}</div>
+              {profile.role !== 'admin' && (
+                <div><span style={{ color: 'var(--text-muted)' }}>Graduating:</span> {profile.graduation_year}</div>
+              )}
+              <div><span style={{ color: 'var(--text-muted)' }}>Role:</span> {profile.role === 'admin' ? 'Program Manager' : 'Campus Ambassador'}</div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="card">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-            <h3 style={{ fontSize:16 }}>🎯 Next Milestone</h3>
-            <span style={{ fontSize:13, color:'var(--text-muted)' }}>{profile?.points||0} / {nextMilestone.target} pts</span>
-          </div>
-          <div className="progress-bar" style={{ marginBottom:10 }}>
-            <div className="progress-fill" style={{ width:`${progress}%` }} />
-          </div>
-          <p style={{ fontSize:13 }}>
-            {progress>=100 ? '🎉 Milestone reached!' : `${nextMilestone.target-(profile?.points||0)} points to unlock `}
-            <strong style={{ color:'var(--accent-purple-light)' }}>{nextMilestone.label}</strong>
-          </p>
+      <div className="grid-3" style={{ marginBottom: 40 }}>
+        <div className="card gradient-card" style={{ background: 'var(--gradient-hero)' }}>
+          <div style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.8, marginBottom: 8 }}>Missions Completed</div>
+          <div style={{ fontSize: 48, fontWeight: 800 }}>{profile.tasks_completed || 0}</div>
+          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.9 }}>Way to go, Ambassador!</div>
         </div>
-      </div>
+        
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>Organization</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-purple-light)', marginBottom: 4 }}>{profile.organization}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Official Campus Program</div>
+        </div>
 
-      <div className="grid-4" style={{ marginBottom:24 }}>
-        <StatCard icon="⭐" label="Total Points"  value={profile?.points||0}              gradient="var(--gradient-amber)" />
-        <StatCard icon="🏆" label="Current Rank"  value={`#${profile?.rank||'—'}`}        gradient="var(--gradient-cyan)" />
-        <StatCard icon="🔥" label="Streak"         value={`${profile?.streak||0}d`}        gradient="linear-gradient(135deg,#F59E0B,#EF4444)" />
-        <StatCard icon="✅" label="Tasks Done"     value={profile?.tasks_completed||0}     gradient="var(--gradient-green)" />
-      </div>
-
-      <div className="grid-2" style={{ marginBottom:24, display: 'none' }}>
-        {/* Hiding old milestone card as it's moved above */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>Current Status</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent-green)' }}>● Active</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Verified Member</div>
+        </div>
       </div>
 
       <div className="grid-2" style={{ marginBottom:24 }}>
-        <div className="card" style={{ display: 'none' }}>
-          {/* Hiding old badges card if needed, but keeping it for now if you want it visible */}
-        </div>
         <div className="card">
           <h3 style={{ fontSize:16, marginBottom:12 }}>🏅 Badges Earned</h3>
           {earnedBadges.length === 0 ? (

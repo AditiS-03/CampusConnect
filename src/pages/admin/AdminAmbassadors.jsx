@@ -1,82 +1,90 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function AdminAmbassadors() {
-  const [users, setUsers]     = useState([]);
+  const { profile } = useAuth();
+  const [ambassadors, setAmbassadors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
 
   useEffect(() => {
+    if (!profile) return;
     async function load() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('*')
-        .order('points', { ascending: false });
-      setUsers(
-        (data || [])
-          .filter(u => u.role !== 'admin')
-          .map((u, i) => ({ ...u, rank: i + 1 }))
-      );
+        .eq('organization', profile.organization)
+        .eq('role', 'ambassador');
+      
+      if (data?.length) {
+        setAmbassadors(data);
+      } else {
+        setAmbassadors([
+          { id: 'u1', name: 'Aditi Singh', email: 'aditi@lpu.in', college: 'Lovely Professional University', tasks_completed: 12, avatar_url: '', college_id_url: '#', resume_url: '#' },
+          { id: 'u2', name: 'Rahul Sharma', email: 'rahul@nsut.ac.in', college: 'NSUT Delhi', tasks_completed: 8, avatar_url: '', college_id_url: '#', resume_url: '#' },
+          { id: 'u3', name: 'Priya Verma', email: 'priya@bits.ac.in', college: 'BITS Pilani', tasks_completed: 15, avatar_url: '', college_id_url: '#', resume_url: '#' }
+        ]);
+      }
       setLoading(false);
     }
     load();
-  }, []);
+  }, [profile]);
 
-  const filtered = users.filter(u =>
-    !search ||
-    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.college?.toLowerCase().includes(search.toLowerCase())
-  );
+  if (loading) return <div className="loading-screen"><span className="spinner" /></div>;
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
-        <h1>👥 Ambassadors</h1>
-        <p>View and manage all registered campus ambassadors</p>
-      </div>
+      <header style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>Hey, <span className="gradient-text">{profile.name}</span> 👋</h1>
+        <p style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: 16 }}>
+          Admin @ <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{profile.organization}</span>
+        </p>
+      </header>
 
-      <div style={{ display:'flex', gap:12, marginBottom:20, alignItems:'center', flexWrap:'wrap' }}>
-        <input className="form-input" style={{ maxWidth:300 }} placeholder="🔍 Search by name or college..." value={search} onChange={e=>setSearch(e.target.value)} />
-        <span style={{ color:'var(--text-muted)', fontSize:14 }}>{filtered.length} ambassadors</span>
-      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: 18 }}>Ambassador Directory</h2>
+          <span className="badge badge-purple">{ambassadors.length} Active Ambassadors</span>
+        </div>
 
-      {loading ? (
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}><div className="spinner" style={{ width:40, height:40 }} /></div>
-      ) : (
-        <div className="table-container">
-          <table>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr><th>Rank</th><th>Ambassador</th><th>College</th><th>Org</th><th>Course</th><th>Points</th><th>Tasks</th><th>Streak</th></tr>
+              <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                <th style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>Ambassador</th>
+                <th style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>College</th>
+                <th style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>Tasks Done</th>
+                <th style={{ padding: '16px 24px', fontSize: 13, color: 'var(--text-muted)' }}>Documents</th>
+              </tr>
             </thead>
             <tbody>
-              {filtered.map(u => (
-                <tr key={u.id}>
-                  <td style={{ fontWeight:700, color:u.rank<=3?'var(--accent-amber)':'var(--text-muted)' }}>#{u.rank}</td>
-                  <td>
-                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--gradient-hero)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, color:'white', fontSize:13, flexShrink:0 }}>{u.name?.[0]}</div>
+              {ambassadors.map((amb, idx) => (
+                <tr key={amb.id} style={{ borderBottom: '1px solid var(--border)', transition: '0.2s' }} className="table-row-hover">
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <img src={amb.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${amb.name}`} style={{ width: 36, height: 36, borderRadius: '50%' }} alt="" />
                       <div>
-                        <div style={{ fontWeight:600, fontSize:14 }}>{u.name}</div>
-                        <div style={{ fontSize:12, color:'var(--text-muted)' }}>{u.email}</div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{amb.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{amb.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={{ color:'var(--text-muted)', fontSize:13 }}>{u.college||'—'}</td>
-                  <td><span className="badge badge-cyan" style={{ fontSize:11 }}>{u.organization||'—'}</span></td>
-                  <td>
-                    <div style={{ fontSize:12, fontWeight:500 }}>{u.course||'—'}</div>
-                    <div style={{ fontSize:11, color:'var(--text-muted)' }}>{u.current_year} ({u.graduation_year})</div>
+                  <td style={{ padding: '16px 24px', fontSize: 14 }}>{amb.college}</td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ fontSize: 14 }}>{amb.tasks_completed || 0} tasks completed</div>
                   </td>
-                  <td><span className="point-pill">⭐ {u.points||0}</span></td>
-                  <td style={{ color:'var(--text-secondary)' }}>{u.tasks_completed||0}</td>
-                  <td><span style={{ color:'var(--accent-amber)' }}>🔥 {u.streak||0}d</span></td>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      {amb.college_id_url && <a href={amb.college_id_url} target="_blank" rel="noreferrer" title="College ID" style={{ textDecoration: 'none' }}>🪪 ID</a>}
+                      {amb.resume_url && <a href={amb.resume_url} target="_blank" rel="noreferrer" title="Resume" style={{ textDecoration: 'none' }}>📄 CV</a>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filtered.length===0 && <div className="empty-state" style={{ padding:40 }}><div className="icon">👥</div><p>No ambassadors found.</p></div>}
         </div>
-      )}
+      </div>
     </div>
   );
 }

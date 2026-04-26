@@ -8,17 +8,15 @@ const ambassadorNav = [
   { to: '/submissions', icon: '📋', label: 'My Submissions' },
   { to: '/community', icon: '🏠', label: 'Community' },
   { to: '/chatbot', icon: '💬', label: 'Query Bot' },
-  { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
 ];
 
 const adminNav = [
   { to: '/admin', icon: '📊', label: 'Overview' },
-  { to: '/admin/tasks', icon: '✏️', label: 'Manage Tasks' },
-  { to: '/admin/verify', icon: '✅', label: 'Verify Submissions' },
   { to: '/admin/ambassadors', icon: '👥', label: 'Ambassadors' },
+  { to: '/admin/verify', icon: '✅', label: 'Verify Submissions' },
+  { to: '/admin/tasks', icon: '✏️', label: 'Manage Tasks' },
   { to: '/community', icon: '🏠', label: 'Community' },
   { to: '/chatbot', icon: '💬', label: 'Query Bot' },
-  { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
 ];
 
 export default function Layout({ children }) {
@@ -108,7 +106,7 @@ export default function Layout({ children }) {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span>⭐ {profile.points || 0} pts</span>
+                  <span>{profile.role === 'admin' ? 'Admin' : 'Ambassador'}</span>
                 </div>
               </div>
             </div>

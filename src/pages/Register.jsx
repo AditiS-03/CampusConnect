@@ -26,25 +26,22 @@ export default function Register() {
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
     setError(''); setLoading(true); 
     try {
-      await register(
-        form.email, 
-        form.password, 
-        form.name, 
-        form.college, 
-        form.organization, 
-        form.course, 
-        form.current_year, 
-        form.graduation_year,
-        files,
-        setStatus // Pass the setter as callback
-      );
+      const profileData = { 
+        name: form.name, 
+        college: form.college, 
+        organization: form.organization, 
+        course: form.course, 
+        current_year: form.current_year, 
+        graduation_year: form.graduation_year 
+      };
+      
+      await register(form.email, form.password, profileData, files, setStatus);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
+    } finally { 
       setLoading(false);
       setStatus('');
-    } finally { 
-      // Finally is good, but catch handles the error reset
     }
   };
 

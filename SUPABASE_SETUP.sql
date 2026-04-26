@@ -109,9 +109,32 @@ CREATE POLICY "Admin creates posts" ON public.posts FOR INSERT WITH CHECK (
 -- Policy: Allow authenticated users to upload
 -- CREATE POLICY "Auth Upload" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'uploads' AND auth.role() = 'authenticated' );
 
--- Seed some dummy tasks
+-- 6. MESSAGING SYSTEM
+CREATE TABLE IF NOT EXISTS public.messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sender_id UUID REFERENCES public.users(id),
+  receiver_id UUID REFERENCES public.users(id),
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  is_read BOOLEAN DEFAULT false
+);
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can see messages they sent or received
+CREATE POLICY "Users can see own messages" ON public.messages
+  FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
+-- Policy: Users can send messages
+CREATE POLICY "Users can send messages" ON public.messages
+  FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- Seed some comprehensive dummy tasks
+DELETE FROM public.tasks;
 INSERT INTO public.tasks (title, description, points, category, difficulty, proof_type, resources) VALUES
 ('Share Launch Post', 'Share our latest launch post on LinkedIn and tag us.', 50, 'Social', 'Easy', 'link', 'https://linkedin.com/posts/launch'),
 ('Host a Webinar', 'Organize a 30-min webinar for your college mates about our tool.', 300, 'Event', 'Hard', 'text', 'https://guide.campusconnect.com/webinars'),
 ('Write a Blog', 'Write a 500-word blog post on Medium about your experience.', 150, 'Content', 'Medium', 'link', 'https://medium.com/write'),
-('Refer 5 Friends', 'Get 5 friends to sign up using your unique referral link.', 200, 'Referral', 'Medium', 'text', 'Use your dashboard referral link');
+('Refer 5 Friends', 'Get 5 friends to sign up using your unique referral link.', 200, 'Referral', 'Medium', 'text', 'Use your dashboard referral link'),
+('Instagram Reel', 'Create a 30-second reel showcasing your favorite feature.', 100, 'Social', 'Medium', 'link', 'https://instagram.com/reels'),
+('College Tech Fest', 'Get our logo included in your college tech fest posters.', 500, 'Event', 'Hard', 'text', 'Upload poster image as proof');

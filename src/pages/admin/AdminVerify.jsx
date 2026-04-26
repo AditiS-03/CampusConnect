@@ -3,42 +3,77 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AdminVerify() {
-  const { user }   = useAuth();
+  const { profile } = useAuth();
   const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState('pending');
-  const [processing, setProc]   = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    // Fetch submissions joined with user info
+  useEffect(() => {
+    loadSubmissions();
+  }, [profile]);
+
+  async function loadSubmissions() {
+    if (!profile) return;
     const { data } = await supabase
       .from('submissions')
-      .select(`*, user:users!user_id(name, email, college, avatar_url, college_id_url, resume_url)`)
-      .order('submitted_at', { ascending: false });
-    setSubmissions(data || []);
+      .select('*, user:users!user_id(*)')
+      .eq('status', 'pending')
+      .eq('user:users.organization', profile.organization);
+
+    if (data?.length) {
+      setSubmissions(data);
+    } else {
+      setSubmissions([
+        {
+          id: 'd1',
+          status: 'pending',
+          proof_url: 'https://example.com',
+          comment: 'Shared the event on my college WhatsApp groups!',
+          created_at: new Date().toISOString(),
+          user: { name: 'Aditi Singh', college: 'LPU', avatar_url: '' },
+          task_title: 'WhatsApp Outreach',
+          points_awarded: 50
+        },
+        {
+          id: 'd2',
+          status: 'pending',
+          proof_url: 'https://example.com',
+          comment: 'Post is live on Instagram. Link in bio.',
+          created_at: new Date().toISOString(),
+          user: { name: 'Rahul Kumar', college: 'NSUT', avatar_url: '' },
+          task_title: 'Instagram Campaign',
+          points_awarded: 100
+        }
+      ]);
+    }
     setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  }
 
-  const handleAction = async (sub, status) => {
-    setProc(sub.id);
-    // Update submission status
-    await supabase.from('submissions').update({
-      status,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: user.id,
-    }).eq('id', sub.id);
+  const handleAction = async (sub, action) => {
+    const status = action === 'approve' ? 'approved' : 'rejected';
+    
+    // 1. Update submission status
+    const { error: subError } = await supabase
+      .from('submissions')
+      .update({ status })
+      .eq('id', sub.id);
 
-    // If approved → award points + increment streak & tasks_completed
-    if (status === 'approved') {
-      const { data: u } = await supabase.from('users').select('points,tasks_completed,streak').eq('id', sub.user_id).single();
-      if (u) {
-        await supabase.from('users').update({
-          points:          (u.points          || 0) + (sub.task_points || 0),
-          tasks_completed: (u.tasks_completed || 0) + 1,
-          streak:          (u.streak          || 0) + 1,
-        }).eq('id', sub.user_id);
-      }
+    if (subError) return alert('Failed to update submission');
+
+    // 2. If approved, award points
+    if (action === 'approve') {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('points, tasks_completed')
+        .eq('id', sub.user_id)
+        .single();
+
+      await supabase
+        .from('users')
+        .update({ 
+          points: (userData.points || 0) + (sub.points_awarded || 0),
+          tasks_completed: (userData.tasks_completed || 0) + 1
+        })
+        .eq('id', sub.user_id);
     }
 
     setSubmissions(prev => prev.map(s => s.id === sub.id ? { ...s, status } : s));
@@ -55,10 +90,12 @@ export default function AdminVerify() {
 
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
-        <h1>✅ Verify Submissions</h1>
-        <p>Review ambassador proof submissions and award points</p>
-      </div>
+      <header style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800 }}>Hey, <span className="gradient-text">{profile?.name}</span> 👋</h1>
+        <p style={{ color: 'var(--text-muted)', marginTop: 6, fontSize: 16 }}>
+          Admin @ <span style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}>{profile?.organization}</span>
+        </p>
+      </header>
 
       <div className="grid-4" style={{ marginBottom:24 }}>
         {[

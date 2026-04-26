@@ -9,9 +9,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (uid) => {
-    const { data } = await supabase.from('users').select('*').eq('id', uid).single();
-    if (data) setProfile(data);
-    return data;
+    try {
+      const { data, error } = await supabase.from('users').select('*').eq('id', uid).maybeSingle();
+      if (error) throw error;
+      if (data) setProfile(data);
+      return data;
+    } catch (err) {
+      console.error('Profile fetch error:', err);
+      setProfile(null);
+      return null;
+    }
   };
 
   // Create profile row if it doesn't exist (handles OAuth users on first login)
@@ -39,20 +46,18 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        await ensureProfile(session.user);
+        fetchProfile(session.user.id);
       }
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         setUser(session.user);
-        await ensureProfile(session.user);
+        fetchProfile(session.user.id);
       } else {
         setUser(null);
         setProfile(null);
@@ -63,51 +68,57 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const register = async (email, password, name, college, organization, course, current_year, graduation_year, files, onStatus) => {
+  const register = async (email, password, profileData = {}, files = {}, onStatus = null) => {
+    const status = (msg) => onStatus && onStatus(msg);
+    
     try {
-      onStatus('Creating account...');
+      status('Creating account...');
       const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
       if (authError) throw authError;
-      if (!authData.user) throw new Error('Account creation failed. Please try again.');
+      if (!authData.user) throw new Error('Account creation failed.');
       
       const userId = authData.user.id;
 
-      onStatus('Uploading files...');
       const upload = async (file, folder, label) => {
         if (!file) return '';
-        onStatus(`Uploading ${label}...`);
+        status(`Uploading ${label}...`);
         const ext = file.name.split('.').pop();
         const path = `${folder}/${userId}.${ext}`;
-        
         const { error } = await supabase.storage.from('uploads').upload(path, file, { upsert: true });
-        if (error) {
-          console.error(`Upload error (${label}):`, error);
-          // If storage fails, we might still want to continue with a default URL
-          return '';
-        }
-        return supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+        if (error) return '';
+        const { data } = supabase.storage.from('uploads').getPublicUrl(path);
+        return data.publicUrl;
       };
 
+      // Run uploads in parallel
       const [avatar_url, college_id_url, resume_url] = await Promise.all([
-        upload(files.avatar, 'avatars', 'Profile Photo'),
-        upload(files.college_id, 'ids', 'College ID'),
-        upload(files.resume, 'resumes', 'Resume')
+        files?.avatar ? upload(files.avatar, 'avatars', 'Photo') : Promise.resolve(''),
+        files?.college_id ? upload(files.college_id, 'ids', 'ID') : Promise.resolve(''),
+        files?.resume ? upload(files.resume, 'resumes', 'Resume') : Promise.resolve('')
       ]);
 
-      onStatus('Finalizing profile...');
-      const { error: dbError } = await supabase.from('users').insert({
+      status('Saving profile...');
+      const { error: dbError } = await supabase.from('users').upsert({
         id: userId,
-        name, email, college, organization, course, current_year, graduation_year,
-        avatar_url, college_id_url, resume_url,
-        points: 0, streak: 0, rank: 999,
-        role: 'ambassador', badges: [], tasks_completed: 0,
-      });
+        email,
+        name: profileData.name || 'Ambassador',
+        college: profileData.college || 'N/A',
+        organization: profileData.organization || 'CampusConnect',
+        course: profileData.course || 'N/A',
+        current_year: profileData.current_year || 0,
+        graduation_year: profileData.graduation_year || 0,
+        role: profileData.role || 'ambassador',
+        avatar_url,
+        college_id_url,
+        resume_url,
+        points: 0,
+        streak: 0,
+        rank: 999,
+        badges: [],
+        tasks_completed: 0,
+      }, { onConflict: 'id' });
       
-      if (dbError) {
-        console.error('DB Insert Error:', dbError);
-        throw new Error('Profile creation failed: ' + dbError.message);
-      }
-
+      if (dbError) throw dbError;
       await fetchProfile(userId);
     } catch (err) {
       console.error('Registration Error:', err);
