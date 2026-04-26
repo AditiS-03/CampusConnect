@@ -10,15 +10,29 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [status, setStatus] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); setLoading(true); setStatus('Signing in...');
+    
+    // Create a timeout promise
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Login timed out. Please check your connection.')), 15000)
+    );
+
     try {
-      await login(email, password);
+      await Promise.race([
+        login(email, password),
+        timeout
+      ]);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message.includes('Invalid login') ? 'Invalid email or password' : err.message);
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+      setStatus('');
+    }
   };
 
   const handleGoogle = async () => {
@@ -65,8 +79,13 @@ export default function Login() {
               <label className="form-label">Password</label>
               <input className="form-input" type="password" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required />
             </div>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width:'100%', justifyContent:'center', marginTop:4 }}>
-              {loading ? <span className="spinner" /> : '🚀 Sign In'}
+             <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width:'100%', justifyContent:'center', marginTop:4 }}>
+              {loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="spinner" style={{ width: 16, height: 16 }} />
+                  {status || 'Please wait...'}
+                </div>
+              ) : '🚀 Sign In'}
             </button>
           </form>
 

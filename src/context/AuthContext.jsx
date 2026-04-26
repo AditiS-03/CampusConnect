@@ -63,18 +63,55 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const register = async (email, password, name, college, organization, course, current_year, graduation_year, avatar_url = '', college_id_url = '', resume_url = '') => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    if (data.user) {
-      await supabase.from('users').insert({
-        id: data.user.id,
+  const register = async (email, password, name, college, organization, course, current_year, graduation_year, files, onStatus) => {
+    try {
+      onStatus('Creating account...');
+      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Account creation failed. Please try again.');
+      
+      const userId = authData.user.id;
+
+      onStatus('Uploading files...');
+      const upload = async (file, folder, label) => {
+        if (!file) return '';
+        onStatus(`Uploading ${label}...`);
+        const ext = file.name.split('.').pop();
+        const path = `${folder}/${userId}.${ext}`;
+        
+        const { error } = await supabase.storage.from('uploads').upload(path, file, { upsert: true });
+        if (error) {
+          console.error(`Upload error (${label}):`, error);
+          // If storage fails, we might still want to continue with a default URL
+          return '';
+        }
+        return supabase.storage.from('uploads').getPublicUrl(path).data.publicUrl;
+      };
+
+      const [avatar_url, college_id_url, resume_url] = await Promise.all([
+        upload(files.avatar, 'avatars', 'Profile Photo'),
+        upload(files.college_id, 'ids', 'College ID'),
+        upload(files.resume, 'resumes', 'Resume')
+      ]);
+
+      onStatus('Finalizing profile...');
+      const { error: dbError } = await supabase.from('users').insert({
+        id: userId,
         name, email, college, organization, course, current_year, graduation_year,
         avatar_url, college_id_url, resume_url,
         points: 0, streak: 0, rank: 999,
         role: 'ambassador', badges: [], tasks_completed: 0,
       });
-      await fetchProfile(data.user.id);
+      
+      if (dbError) {
+        console.error('DB Insert Error:', dbError);
+        throw new Error('Profile creation failed: ' + dbError.message);
+      }
+
+      await fetchProfile(userId);
+    } catch (err) {
+      console.error('Registration Error:', err);
+      throw err;
     }
   };
 

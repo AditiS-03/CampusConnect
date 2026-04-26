@@ -14,7 +14,7 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
+  const [status, setStatus] = useState('');
   const [files, setFiles] = useState({ avatar: null, college_id: null, resume: null });
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
@@ -24,15 +24,8 @@ export default function Register() {
     e.preventDefault();
     if (form.password !== form.confirm) return setError('Passwords do not match');
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
-    setError(''); setLoading(true);
+    setError(''); setLoading(true); 
     try {
-      // Upload files first
-      const [avatar_url, college_id_url, resume_url] = await Promise.all([
-        uploadFile(files.avatar, 'avatars'),
-        uploadFile(files.college_id, 'ids'),
-        uploadFile(files.resume, 'resumes')
-      ]);
-
       await register(
         form.email, 
         form.password, 
@@ -42,14 +35,17 @@ export default function Register() {
         form.course, 
         form.current_year, 
         form.graduation_year,
-        avatar_url || '',
-        college_id_url || '',
-        resume_url || ''
+        files,
+        setStatus // Pass the setter as callback
       );
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message.includes('already registered') ? 'Email already in use' : err.message);
-    } finally { setLoading(false); }
+      setError(err.message);
+      setLoading(false);
+      setStatus('');
+    } finally { 
+      // Finally is good, but catch handles the error reset
+    }
   };
 
   return (
@@ -149,7 +145,12 @@ export default function Register() {
             </div>
 
             <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width:'100%', justifyContent:'center', marginTop:4 }}>
-              {loading ? <span className="spinner" /> : '🎓 Create Account'}
+              {loading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="spinner" style={{ width: 16, height: 16 }} />
+                  {status}
+                </div>
+              ) : '🎓 Create Account'}
             </button>
           </form>
 
